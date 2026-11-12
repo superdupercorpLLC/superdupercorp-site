@@ -1,0 +1,7 @@
+data/auth.json
+data/messages.json
+data/SETUP-CODE.txt
+data/*.tmp
+uploads/*
+!uploads/.htaccess
+*.zip

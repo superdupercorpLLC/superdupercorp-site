@@ -1,0 +1,46 @@
+# SUPER DUPER CORP — Apache / LiteSpeed config (cPanel)
+Options -Indexes
+DirectoryIndex index.php
+ErrorDocument 404 /404.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Force HTTPS (uncomment once SSL is active in cPanel, which it usually is via AutoSSL)
+  # RewriteCond %{HTTPS} off
+  # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  RewriteRule ^work/?$ work.php [L,QSA]
+  RewriteRule ^work/([A-Za-z0-9-]+)/?$ project.php?slug=$1 [L,QSA]
+  RewriteRule ^(about|contact)/?$ $1.php [L,QSA]
+  RewriteRule ^studio/?$ about.php [L,QSA]
+</IfModule>
+
+# Never serve internals
+<FilesMatch "(^\.|^_|\.(md|json|txt|log|tmp)$|^dev-router\.php$)">
+  <IfModule mod_authz_core.c>Require all denied</IfModule>
+  <IfModule !mod_authz_core.c>Order allow,deny
+  Deny from all</IfModule>
+</FilesMatch>
+<FilesMatch "^robots\.txt$">
+  <IfModule mod_authz_core.c>Require all granted</IfModule>
+  <IfModule !mod_authz_core.c>Allow from all</IfModule>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType video/mp4 "access plus 1 year"
+  ExpiresByType text/css "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml
+</IfModule>
