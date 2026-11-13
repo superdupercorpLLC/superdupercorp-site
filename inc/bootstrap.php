@@ -6,7 +6,22 @@
 declare(strict_types=1);
 
 define('ROOT', dirname(__DIR__));
-define('DATA_DIR', ROOT . '/data');
+// Private data (password hash, uploader keys, messages, content) lives OUTSIDE the web root when
+// possible, e.g. /home/user/sdc-site-data next to /home/user/sdc-site, so the web server can never
+// serve it, whatever its .htaccess support. Existing files in ./data are moved there automatically.
+(function () {
+    $outside = dirname(ROOT) . '/' . basename(ROOT) . '-data';
+    if (!is_dir($outside)) @mkdir($outside, 0750);
+    if (is_dir($outside) && is_writable($outside)) {
+        foreach (glob(ROOT . '/data/*.{json,txt}', GLOB_BRACE) ?: [] as $f) {
+            $to = $outside . '/' . basename($f);
+            if (!file_exists($to)) @rename($f, $to); else @unlink($f);
+        }
+        define('DATA_DIR', $outside);
+    } else {
+        define('DATA_DIR', ROOT . '/data');
+    }
+})();
 define('UPLOAD_DIR', ROOT . '/uploads');
 
 const CATEGORIES = [

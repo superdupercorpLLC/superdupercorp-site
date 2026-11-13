@@ -5,6 +5,10 @@ ErrorDocument 404 /404.php
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  # Hard-block internal folders (works on LiteSpeed too, which may ignore per-folder deny rules)
+  RewriteRule ^(data|inc|tools)(/|$) - [F,L]
+  RewriteRule ^admin/_ - [F,L]
+  RewriteRule ^(README\.md|deploy\.sh|dev-router\.php|\.git) - [F,L]
   # Let the uploader key reach PHP on hosts that strip the Authorization header
   RewriteCond %{HTTP:Authorization} .
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
