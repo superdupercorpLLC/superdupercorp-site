@@ -1,10 +1,12 @@
 ---
 # One-click deploy (cPanel / Flashcloud Git): copy the code into public_html.
+# Adds and updates files only. public_html/.htaccess is never touched by a deploy
+# (cPanel keeps PHP settings there that other sites may rely on); it is merged by hand once.
 # Adds and updates files only. It never deletes anything, so client sites in
 # public_html and your live content in data/ and uploads/ are left alone.
 deployment:
   tasks:
     - export DEPLOYPATH=$HOME/public_html/
     - /bin/mkdir -p $DEPLOYPATH
-    - /bin/tar --exclude=./.git --exclude=./tools --exclude=./.cpanel.yml --exclude=./dev-router.php --exclude='./data/*.json' --exclude='./uploads/*' -cf - . | /bin/tar -xf - -C $DEPLOYPATH
+    - /bin/tar --exclude=./.git --exclude=./.htaccess --exclude=./tools --exclude=./.cpanel.yml --exclude=./dev-router.php --exclude='./data/*.json' --exclude='./uploads/*' -cf - . | /bin/tar -xf - -C $DEPLOYPATH
     - /bin/mkdir -p ${DEPLOYPATH}uploads
