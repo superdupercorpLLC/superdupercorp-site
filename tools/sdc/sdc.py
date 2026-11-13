@@ -476,6 +476,7 @@ class PageParser(HTMLParser):
             self._t = False
 
 def fetch(url, binary=False):
+    url = urllib.parse.quote(url, safe=":/?#[]@!$&'()*+,;=%~")  # spaces etc. in file names
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh) " + UA})
     with urllib.request.urlopen(req, timeout=60) as r:
         data = r.read()
