@@ -30,4 +30,7 @@ find "$DEST" -type f -exec chmod 644 {} +
 if [ -n "$KEEP" ]; then
   { printf '%s\n\n' "$KEEP"; cat "$DEST/.htaccess"; } > "$DEST/.htaccess.new" && mv "$DEST/.htaccess.new" "$DEST/.htaccess"
 fi
+# Make LiteSpeed reload PHP so new code takes effect right away (it caches compiled PHP per account).
+touch "$HOME/.lsphp_restart.txt" 2>/dev/null || true
+
 echo "Deployed to $DEST"
