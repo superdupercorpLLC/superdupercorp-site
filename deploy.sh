@@ -18,7 +18,13 @@ fi
 # 2. Copy the code.
 tar --exclude=./.git --exclude=./tools --exclude=./.cpanel.yml --exclude=./deploy.sh \
     --exclude=./dev-router.php --exclude='./data/*.json' --exclude='./data/*.txt' --exclude='./uploads/*' \
-    -cf - . | tar -xf - -C "$DEST"
+    -cf - . | tar --no-same-owner --no-same-permissions --no-overwrite-dir -xf - -C "$DEST"
+
+# Web-readable permissions, whatever umask the Git clone used (cPanel clones are owner-only,
+# which makes every file 404 on LiteSpeed). Folders 755, files 644.
+chmod 755 "$DEST"
+find "$DEST" -type d -exec chmod 755 {} +
+find "$DEST" -type f -exec chmod 644 {} +
 
 # 3. Put cPanel's PHP lines back on top of the new .htaccess.
 if [ -n "$KEEP" ]; then
