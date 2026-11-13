@@ -9,6 +9,8 @@
  *   POST ?a=upload   (multipart)     → add a file to a project (deduplicated by content hash)
  *   GET  ?a=drafts[&all=1]           → drafts that still need details
  *   POST ?a=update   (JSON)          → fill in details on a draft
+ *   GET  ?a=diag                     → server capabilities + installed code version
+ *   POST ?a=self_update              → install the latest code from the site's own GitHub repo
  */
 declare(strict_types=1);
 require dirname(__DIR__) . '/inc/bootstrap.php';
@@ -95,7 +97,15 @@ if ($a === 'diag') {
          'writable' => ['uploads' => is_writable(ROOT . '/uploads'), 'data' => is_writable(DATA_DIR)],
          'data_outside_webroot' => !str_starts_with(DATA_DIR, ROOT . '/'),
          'can_run_commands' => ['exec' => $can('exec'), 'shell_exec' => $can('shell_exec'), 'proc_open' => $can('proc_open')],
-         'git' => $git ?: null]);
+         'git' => $git ?: null, 'phar' => class_exists('PharData'), 'curl' => function_exists('curl_init'),
+         'allow_url_fopen' => (bool) ini_get('allow_url_fopen'), 'version' => read_json('version', null)]);
+}
+
+if ($a === 'self_update' && $method === 'POST') {
+    require dirname(__DIR__) . '/inc/selfupdate.php';
+    @set_time_limit(300);
+    try { out(['ok' => true] + self_update('main')); }
+    catch (RuntimeException $e) { out(['error' => $e->getMessage()], 502); }
 }
 
 if ($a === 'create' && $method === 'POST') {
