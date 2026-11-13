@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'unfeature' => $w['featured'] = false,
                 default     => null,
             };
+            if ($act === 'publish') unset($w['needs_details'], $w['ai_suggested']);
             $w['updated'] = date('c');
         }
         unset($w);
@@ -41,9 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $works = all_works();
 usort($works, fn($a, $b) => [(int)($b['year'] ?? 0), $b['updated'] ?? ''] <=> [(int)($a['year'] ?? 0), $a['updated'] ?? '']);
 $status = $_GET['s'] ?? 'all';
-$counts = ['all' => count($works), 'published' => 0, 'draft' => 0];
-foreach ($works as $w) $counts[$w['status'] ?? 'draft']++;
-if ($status !== 'all') $works = array_filter($works, fn($w) => ($w['status'] ?? 'draft') === $status);
+$counts = ['all' => count($works), 'published' => 0, 'draft' => 0, 'todo' => 0];
+foreach ($works as $w) { $counts[$w['status'] ?? 'draft']++; if (!empty($w['needs_details']) || !empty($w['ai_suggested'])) $counts['todo']++; }
+if ($status === 'todo') $works = array_filter($works, fn($w) => !empty($w['needs_details']) || !empty($w['ai_suggested']));
+elseif ($status !== 'all') $works = array_filter($works, fn($w) => ($w['status'] ?? 'draft') === $status);
 $hasSamples = (bool) array_filter(all_works(), fn($w) => !empty($w['sample']));
 
 admin_head('Work', 'work');
@@ -65,7 +67,7 @@ admin_head('Work', 'work');
 <?php endif; ?>
 
 <nav class="tabs">
-  <?php foreach (['all' => 'All', 'published' => 'Live', 'draft' => 'Drafts'] as $k => $l): ?>
+  <?php foreach (['all' => 'All', 'published' => 'Live', 'draft' => 'Drafts', 'todo' => 'Needs details'] as $k => $l): ?>
     <a href="?s=<?= $k ?>"<?= $status === $k ? ' aria-current="page"' : '' ?>><?= $l ?> <span><?= $counts[$k] ?></span></a>
   <?php endforeach; ?>
   <input class="tabs__q" type="search" placeholder="Filter list…" data-tablefilter>
@@ -101,6 +103,8 @@ admin_head('Work', 'work');
         <span class="wlist__tags">
           <?php if (!empty($w['featured'])): ?><i class="tag tag--feat">★ Home</i><?php endif; ?>
           <?php if (!empty($w['sample'])): ?><i class="tag">Sample</i><?php endif; ?>
+          <?php if (!empty($w['needs_details'])): ?><i class="tag tag--todo">Needs details</i><?php endif; ?>
+          <?php if (!empty($w['ai_suggested'])): ?><i class="tag tag--ai">Claude draft: check it</i><?php endif; ?>
           <i class="tag tag--<?= e($w['status'] ?? 'draft') ?>"><?= ($w['status'] ?? '') === 'published' ? 'Live' : 'Draft' ?></i>
         </span>
         <a class="wlist__view" href="<?= work_url($w) ?>" target="_blank" aria-label="Preview">↗</a>

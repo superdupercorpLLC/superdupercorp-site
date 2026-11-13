@@ -24,6 +24,12 @@ Images are resized automatically: 2400px for full size and 1000px for thumbnails
 ### Upload limits
 Shared hosts often cap uploads at 2–64 MB. If big files fail, go to cPanel → *Select PHP Version → Options* (or *MultiPHP INI Editor*) and raise `upload_max_filesize` and `post_max_size` (e.g. 128M), and `max_file_uploads` (e.g. 50).
 
+## Automatic uploads (archive drive, folders, Behance, Instagram)
+See **`tools/sdc/README.md`**. In short: make a key in **Admin → Site copy → Uploader keys**, double-click
+`tools/sdc/Install sdc.command` on your Mac, then `sdc scan "/Volumes/ARCHIVE"` → review the plan → `sdc upload plan.csv`.
+Everything arrives as a draft; Claude can fill in the details (`sdc drafts pull/push`); you publish.
+You don't need to upload the `tools/` folder to your host.
+
 ## Backups
 All your content is in two folders: **`data/`** (text) and **`uploads/`** (media). Download both now and then.
 

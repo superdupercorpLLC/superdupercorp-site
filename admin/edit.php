@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $wantSlug = $t('slug') ?: $w['title'];
         $w['slug'] = unique_slug($wantSlug, $w['id'] ?: null);
         $w['updated'] = date('c');
-        unset($w['sample']);
+        unset($w['sample'], $w['needs_details'], $w['ai_suggested']);
         if ($idx === null) { $w['id'] = new_id(); $w['created'] = date('c'); $works[] = $w; }
         else $works[$idx] = $w;
         write_json('works', $works);
@@ -185,6 +185,8 @@ $maxUp = ini_get('upload_max_filesize'); $maxPost = ini_get('post_max_size');
       <button class="btn btn--wide" type="submit">Save</button>
     </div>
     <?php if (!$isNew): ?>
+      <?php if (!empty($w['ai_suggested'])): ?><p class="flash flash--ai">Claude wrote these details from the images. Check them, fix anything wrong, then save.</p><?php endif; ?>
+      <?php if (!empty($w['source'])): ?><p class="meta">Imported from<br><?= e($w['source']) ?></p><?php endif; ?>
       <p class="meta">Created <?= e(substr($w['created'] ?? '', 0, 10)) ?><br>Updated <?= e(substr($w['updated'] ?? '', 0, 10)) ?></p>
       <button class="btn btn--danger btn--wide" name="action" value="delete" formnovalidate data-confirm="Delete this project and its uploaded files? This can’t be undone.">Delete project</button>
     <?php endif; ?>

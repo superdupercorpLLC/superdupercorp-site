@@ -5,6 +5,9 @@ ErrorDocument 404 /404.php
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  # Let the uploader key reach PHP on hosts that strip the Authorization header
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
   # Force HTTPS (uncomment once SSL is active in cPanel, which it usually is via AutoSSL)
   # RewriteCond %{HTTPS} off
   # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

@@ -36,6 +36,22 @@ $fields = [
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
+    if (isset($_POST['key_action'])) {
+        $a = auth();
+        $a['api_keys'] = $a['api_keys'] ?? [];
+        if ($_POST['key_action'] === 'new') {
+            $key = 'sdc_' . bin2hex(random_bytes(24));
+            $a['api_keys'][] = ['id' => new_id(), 'label' => mb_substr(trim((string)($_POST['label'] ?? '')) ?: 'Uploader', 0, 60),
+                                'hash' => hash('sha256', $key), 'created' => date('c'), 'last_used' => ''];
+            $_SESSION['new_key'] = $key;
+            flash('New uploader key created. Copy it now: it will not be shown again.');
+        } elseif ($_POST['key_action'] === 'revoke') {
+            $a['api_keys'] = array_values(array_filter($a['api_keys'], fn($k) => $k['id'] !== ($_POST['key_id'] ?? '')));
+            flash('Key revoked. Anything using it stops working immediately.');
+        }
+        write_json('auth', $a);
+        redirect(url('admin/settings.php') . '#keys');
+    }
     $s = read_json('site', []);
     foreach ($fields as $group) foreach ($group as $k => $_) {
         $s[$k] = trim(str_replace("\r", '', (string)($_POST[$k] ?? '')));
@@ -93,4 +109,26 @@ admin_head('Site copy', 'settings');
   </fieldset>
   <button class="btn btn--big sticky-save">Save everything</button>
 </form>
+
+<section class="panel" id="keys" style="max-width:860px;margin-top:40px">
+  <h2 style="margin-top:0">Uploader keys</h2>
+  <p class="hint">A key lets the <b>sdc</b> uploader on your Mac (and Claude) add work to this site as <b>drafts</b>. Keys can never publish anything. Revoke a key if a computer is lost.</p>
+  <?php if (!empty($_SESSION['new_key'])): ?>
+    <p><b>Your new key:</b> copy it into the uploader setup now.</p>
+    <p class="newkey"><?= e($_SESSION['new_key']) ?></p>
+    <?php unset($_SESSION['new_key']); ?>
+  <?php endif; ?>
+  <?php $keys = auth()['api_keys'] ?? []; if ($keys): ?>
+  <ul class="keys">
+    <?php foreach ($keys as $k): ?>
+      <li><span><b><?= e($k['label']) ?></b><br><small>Created <?= e(substr($k['created'], 0, 10)) ?> · <?= $k['last_used'] ? 'last used ' . e(substr($k['last_used'], 0, 10)) : 'never used' ?></small></span>
+        <form method="post"><?= csrf_field() ?><input type="hidden" name="key_action" value="revoke"><input type="hidden" name="key_id" value="<?= e($k['id']) ?>">
+          <button class="btn btn--small btn--danger" data-confirm="Revoke this key?">Revoke</button></form></li>
+    <?php endforeach; ?>
+  </ul>
+  <?php endif; ?>
+  <form method="post" class="row" style="margin-top:12px"><?= csrf_field() ?><input type="hidden" name="key_action" value="new">
+    <input name="label" placeholder="Name it, e.g. Studio iMac" style="max-width:280px">
+    <button class="btn btn--small">+ New key</button></form>
+</section>
 <?php admin_foot();

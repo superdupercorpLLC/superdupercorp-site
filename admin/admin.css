@@ -116,6 +116,11 @@ legend { font: 900 20px "Archivo"; font-variation-settings: "wdth" 125; text-tra
 .tag--published { background: var(--green); }
 .tag--draft { background: #ddd; }
 .tag--feat { background: var(--yellow); }
+.tag--todo { background: var(--red); color: #fff; }
+.tag--ai { background: var(--blue); color: #fff; }
+.keys { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.keys li { display: flex; gap: 12px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--ink); padding: 6px 0; flex-wrap: wrap; }
+.newkey { font: 700 15px var(--mono); background: var(--yellow); border: 3px solid var(--ink); padding: 12px; word-break: break-all; user-select: all; }
 
 .msgs { display: grid; gap: 14px; }
 .msg { border: 3px solid var(--ink); background: #fff; padding: 16px; }
@@ -134,3 +139,5 @@ legend { font: 900 20px "Archivo"; font-variation-settings: "wdth" 125; text-tra
   .wlist__view { grid-row: 1; grid-column: 4; }
   .tabs__q { margin-left: 0; max-width: none; flex-basis: 100%; }
 }
+
+.flash--ai { background: var(--blue); color: #fff; font-size: 14px; }

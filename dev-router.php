@@ -1,7 +1,7 @@
 <?php
 // Local preview only: `php -S localhost:8000 dev-router.php`. Mirrors the .htaccess rewrites.
 $p = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-if (preg_match('~^/(data/|\.|.*\.(json|md|txt)$)~', $p) && $p !== '/robots.txt') { http_response_code(403); exit('Forbidden'); }
+if (preg_match('~^/(data/|tools/|\.|.*\.(json|md|txt)$)~', $p) && $p !== '/robots.txt') { http_response_code(403); exit('Forbidden'); }
 if (preg_match('~^/uploads/.*\.php~', $p)) { http_response_code(403); exit; }
 if ($p !== '/' && is_file(__DIR__ . $p) && !str_ends_with($p, '.php')) return false;
 $routes = ['~^/work/?$~' => 'work.php', '~^/(about|studio)/?$~' => 'about.php', '~^/contact/?$~' => 'contact.php'];
