@@ -5,3 +5,6 @@ data/*.tmp
 uploads/*
 !uploads/.htaccess
 *.zip
+__pycache__/
+*.pyc
+data/hashes.json
