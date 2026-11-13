@@ -5,6 +5,20 @@ declare(strict_types=1);
 const IMAGE_TYPES = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
 const VIDEO_TYPES = ['video/mp4' => 'mp4', 'video/webm' => 'webm', 'video/quicktime' => 'mov'];
 
+/** MIME type from file contents; works even when the fileinfo extension is disabled. */
+function detect_mime(string $path, string $name = ''): string {
+    if (class_exists('finfo')) {
+        $m = (new finfo(FILEINFO_MIME_TYPE))->file($path);
+        if ($m) return $m;
+    }
+    $info = @getimagesize($path);
+    if (!empty($info['mime'])) return $info['mime'];
+    $head = (string) @file_get_contents($path, false, null, 0, 16);
+    if (substr($head, 4, 4) === 'ftyp') return str_contains(substr($head, 8, 4), 'qt') ? 'video/quicktime' : 'video/mp4';
+    if (str_starts_with($head, "\x1A\x45\xDF\xA3")) return 'video/webm';
+    return 'application/octet-stream';
+}
+
 /** Normalise $_FILES[name] into a flat list of files. */
 function files_of(string $name): array {
     if (empty($_FILES[$name])) return [];
@@ -33,7 +47,7 @@ function upload_error_text(int $code): string {
 function store_upload(array $file, string $label): array {
     if ($file['error'] !== UPLOAD_ERR_OK) throw new RuntimeException($file['name'] . ': ' . upload_error_text($file['error']));
     if (!is_uploaded_file($file['tmp_name'])) throw new RuntimeException('Invalid upload.');
-    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+    $mime = detect_mime($file['tmp_name'], $file['name']);
     $dir = 'uploads/' . date('Y/m');
     if (!is_dir(ROOT . "/$dir")) mkdir(ROOT . "/$dir", 0755, true);
     $base = $dir . '/' . substr(slugify($label), 0, 40) . '-' . bin2hex(random_bytes(3));

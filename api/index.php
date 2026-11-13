@@ -64,11 +64,38 @@ $fields = function (array $in): array {
     return $o;
 };
 
+// Any crash becomes a readable JSON error (and lands in the PHP error log) instead of a bare 500.
+set_exception_handler(function (Throwable $e) {
+    error_log('[sdc api] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+    out(['error' => 'Server error: ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')'], 500);
+});
+register_shutdown_function(function () {
+    $e = error_get_last();
+    if ($e && in_array($e['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR], true) && !headers_sent()) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Fatal: ' . $e['message'] . ' (' . basename($e['file']) . ':' . $e['line'] . ')']);
+    }
+});
+
 // --- actions ------------------------------------------------------------------
 if ($a === 'ping') {
     out(['ok' => true, 'site' => setting('studio_name', 'SUPER DUPER CORP'),
          'limits' => ['upload_max_filesize' => ini_get('upload_max_filesize'), 'post_max_size' => ini_get('post_max_size')],
          'categories' => array_keys(CATEGORIES)]);
+}
+
+if ($a === 'diag') {
+    $disabled = array_map('trim', explode(',', (string) ini_get('disable_functions')));
+    $can = fn($f) => function_exists($f) && !in_array($f, $disabled, true);
+    $git = $can('exec') ? trim((string) @exec('command -v git 2>/dev/null')) : '';
+    out(['ok' => true, 'php' => PHP_VERSION, 'sapi' => PHP_SAPI,
+         'ext' => ['gd' => extension_loaded('gd'), 'webp' => function_exists('imagewebp'), 'fileinfo' => class_exists('finfo'),
+                   'exif' => function_exists('exif_read_data'), 'mbstring' => extension_loaded('mbstring')],
+         'memory_limit' => ini_get('memory_limit'), 'max_execution_time' => ini_get('max_execution_time'),
+         'writable' => ['uploads' => is_writable(ROOT . '/uploads'), 'data' => is_writable(DATA_DIR)],
+         'data_outside_webroot' => !str_starts_with(DATA_DIR, ROOT . '/'),
+         'can_run_commands' => ['exec' => $can('exec'), 'shell_exec' => $can('shell_exec'), 'proc_open' => $can('proc_open')],
+         'git' => $git ?: null]);
 }
 
 if ($a === 'create' && $method === 'POST') {
