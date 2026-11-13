@@ -1,14 +1,7 @@
 ---
-# One-click deploy (cPanel / Flashcloud Git).
-#
-# STAGE 1 (now): the new site lives in its own folder, ~/sdc-site, served at new.superdupercorp.com.
-# public_html (the current WordPress site) and the client sites (~/maxklaw, ~/niceradio) are never touched.
-#
-# Deploys add and update files only: nothing is deleted, and live content in data/ and uploads/ is skipped.
-# STAGE 2 (switch-over) will be a separate, planned change; don't point this at public_html by hand.
+# One-click deploy (cPanel / Flashcloud Git). All logic lives in deploy.sh:
+# it copies the site into ~/sdc-site (new.superdupercorp.com) and never touches
+# public_html (WordPress), ~/maxklaw, ~/niceradio, or your live content.
 deployment:
   tasks:
-    - export DEPLOYPATH=$HOME/sdc-site/
-    - /bin/mkdir -p $DEPLOYPATH
-    - /bin/tar --exclude=./.git --exclude=./tools --exclude=./.cpanel.yml --exclude=./dev-router.php --exclude='./data/*.json' --exclude='./uploads/*' -cf - . | /bin/tar -xf - -C $DEPLOYPATH
-    - /bin/mkdir -p ${DEPLOYPATH}uploads
+    - /bin/bash deploy.sh
