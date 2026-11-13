@@ -3,13 +3,32 @@
 A portfolio and archive site for SUPER DUPER CORP LLC (MaxP Goodwin).
 It's plain PHP with no database. Everything is stored in `/data` as JSON files and media goes in `/uploads`. It runs on any cPanel / shared host with PHP 8.0 or newer.
 
-## Put it live (cPanel, ~10 minutes)
+## Put it live (Flashcloud shared hosting / cPanel, ~15 minutes)
 
-1. **Back up the current site.** In cPanel → File Manager, open `public_html`, select everything, click **Compress** and download the zip.
-2. **Check PHP.** cPanel → *Select PHP Version* (or *MultiPHP Manager*). Pick **8.1 or newer** and make sure **gd** and **fileinfo** are ticked.
-3. **Upload.** In File Manager, open `public_html`, upload `superdupercorp-site.zip` and **Extract** it there. Turn on *Settings → Show Hidden Files* and confirm the `.htaccess` files came through (root, `data/`, `uploads/`).
-4. **Set your password.** Visit `https://superdupercorp.com/admin`. The page creates a setup code in `public_html/data/SETUP-CODE.txt`. Open that file in File Manager, copy the code into the form, and choose a password. The code file deletes itself once you're done.
-5. **Force HTTPS** (optional): in `.htaccess`, remove the `#` from the two lines under “Force HTTPS”.
+> **This account also hosts client sites. Read step 1 before touching anything.**
+
+1. **Find where every site lives.** In cPanel, open **Domains**. The *Document Root* column shows each site's folder.
+   Note any client site whose folder is **inside** `public_html` (e.g. `public_html/clientsite.com`).
+   Those folders must not be moved, renamed or deleted in the steps below.
+2. **Back up.** In File Manager, right-click `public_html` → **Compress** → download the zip.
+3. **Set aside the old superdupercorp.com files** (only those, not client folders): make a folder
+   `public_html/_old-site` and move the old site's own files into it.
+4. **Check PHP.** cPanel → *MultiPHP Manager*: set superdupercorp.com to **PHP 8.1 or newer**.
+   In *Select PHP Version → Extensions*, make sure **gd** and **fileinfo** are ticked.
+   In *MultiPHP INI Editor* (choose superdupercorp.com), set `upload_max_filesize` and `post_max_size` to **256M**
+   and `max_file_uploads` to **50**. On a per-domain basis this won't affect client sites.
+5. **Upload.** In `public_html`, upload `superdupercorp-site.zip` and **Extract** it. Turn on *Settings → Show Hidden
+   Files* and confirm the `.htaccess` files came through. (The zip contains no folders that clash with client sites.)
+6. **Set your password.** Visit `https://superdupercorp.com/admin`. Open `public_html/data/SETUP-CODE.txt` in File Manager,
+   enter the code, and choose a password.
+7. **HTTPS.** Once `https://superdupercorp.com` loads with a padlock (Flashcloud AutoSSL), remove the `#` from the two
+   lines under "Force HTTPS" in `.htaccess`.
+8. **Check the client sites still load.** Open each one in your browser.
+
+### Space and video
+The plan has 100 GB. Images are resized to web size (typically 0.2–0.8 MB each), so even tens of thousands of images fit.
+Long or high-res **videos** are better on Vimeo or YouTube: paste the link into the project's *Video link* field.
+Keep MP4 uploads for short clips.
 
 ## Adding work
 
