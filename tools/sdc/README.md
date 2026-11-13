@@ -64,6 +64,9 @@ sdc web https://old-site.com/work/project another-url …
 Each page becomes a draft with its images, title, description and year. (Pages that only load images with JavaScript
 won't work. Use the Wayback Machine copy of the page instead, `https://web.archive.org/web/2015/old-site.com/…`.)
 
+**WordPress** (e.g. your old site): `sdc wordpress https://superdupercorp.com` imports every portfolio item
+(or post) with its write-up, year, images and video link. Add `--dry-run` first to see what it would import.
+
 **Instagram** doesn't allow page imports. Use your data export instead:
 Instagram → Settings → Accounts Center → Your information and permissions → **Download your information** →
 choose **JSON** and include **Posts**. Unzip it, then:

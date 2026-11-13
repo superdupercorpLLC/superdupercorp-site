@@ -11,6 +11,7 @@ Everything arrives on the site as a hidden DRAFT. Nothing is ever published by t
   sdc watch PATH [--every 15]    keep a folder synced automatically (runs in the background on your Mac)
   sdc unwatch                    stop the background sync
   sdc web URL [URL ...]          import a Behance project or any web page with your work on it
+  sdc wordpress URL [--dry-run]  import portfolio items/posts from a WordPress site
   sdc instagram EXPORT_FOLDER    import posts from an Instagram "Download your information" export
   sdc drafts pull FOLDER         download drafts that need details (for Claude to fill in)
   sdc drafts push FOLDER         send the filled-in details back to the site (still drafts)
@@ -602,6 +603,102 @@ def import_instagram(site, folder, since=None, category="personal"):
     say("\nDone. Instagram posts are drafts. Delete the ones that aren't portfolio pieces.")
 
 
+# ---------------------------------------------------------------------------- WordPress import
+def html_to_text(h):
+    h = re.sub(r"(?is)<(script|style).*?</\1>", "", h)
+    h = re.sub(r"(?i)<br\s*/?>", "\n", h)
+    h = re.sub(r"(?i)</(p|h[1-6]|li|div|blockquote)>", "\n\n", h)
+    h = re.sub(r"(?i)<li[^>]*>", "• ", h)
+    t = html.unescape(re.sub(r"<[^>]+>", "", h))
+    t = re.sub(r"[ \t\xa0]+", " ", t)
+    t = re.sub(r"\n\s*\n\s*(\n\s*)+", "\n\n", t)
+    return "\n\n".join(p.strip() for p in t.split("\n\n") if p.strip())
+
+def wp_original(u):
+    """Strip WordPress size suffixes (photo-1024x683.jpg, -scaled) to get the full-size upload."""
+    return re.sub(r"-(\d{2,5}x\d{2,5}|scaled)(?=\.[a-z]{3,4}$)", "", u.split("?")[0], flags=re.I)
+
+def wp_items(base, kind=None):
+    api = base.rstrip("/") + "/wp-json/wp/v2/"
+    kinds = [kind] if kind else ["portfolio_item", "portfolio", "project", "projects", "posts"]
+    for k in kinds:
+        out, page = [], 1
+        while True:
+            try:
+                data = json.loads(fetch(api + "%s?per_page=50&page=%d&_embed=1" % (k, page)))
+            except Exception:
+                break
+            if not isinstance(data, list) or not data:
+                break
+            out += data
+            page += 1
+        if out:
+            return k, out
+    return None, []
+
+def import_wordpress(site, base, kind=None, dry=False, max_images=24):
+    k, items = wp_items(base, kind)
+    if not items:
+        die("No portfolio items or posts found at %s (is the WordPress REST API turned off?)" % base)
+    say("Found %d %s items on %s%s" % (len(items), k, base, " (dry run: nothing is uploaded)" if dry else ""))
+    conn = None if dry else db()
+    for it in items:
+        title = html.unescape(re.sub(r"<[^>]+>", "", it.get("title", {}).get("rendered", ""))).strip() or "Untitled"
+        content = it.get("content", {}).get("rendered", "")
+        body = html_to_text(content)
+        excerpt = html_to_text(it.get("excerpt", {}).get("rendered", ""))
+        summary = (excerpt or body).split("\n")[0]
+        summary = summary if len(summary) <= 240 else summary[:237].rsplit(" ", 1)[0] + "…"
+        year = int(it.get("date", "0")[:4]) if it.get("date") else ""
+        imgs = []
+        fm = (it.get("_embedded", {}).get("wp:featuredmedia") or [{}])[0].get("source_url")
+        if fm:
+            imgs.append(fm)
+        for u in re.findall(r'https?://[^"\'\s<>()]+?/wp-content/uploads/[^"\'\s<>()]+?\.(?:jpe?g|png|webp|gif)', content, re.I):
+            imgs.append(u)
+        seen, uniq = set(), []
+        for u in imgs:
+            o = wp_original(u)
+            if o not in seen:
+                seen.add(o)
+                uniq.append((o, u.split("?")[0]))
+        uniq = uniq[:max_images]
+        vid = re.search(r'(https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|embed/)|youtu\.be/|(?:player\.)?vimeo\.com/(?:video/)?)[\w-]+)', content)
+        cat, disc = guess(title + " " + body[:2000], [])
+        say("\n%s (%s): %d images%s, %d words" % (title, year, len(uniq), ", video" if vid else "", len(body.split())))
+        if dry:
+            continue
+        with tempfile.TemporaryDirectory(prefix="sdc-wp-") as tmp:
+            files = []
+            for i, (u, shown) in enumerate(uniq):
+                try:
+                    try:
+                        blob = fetch(u, binary=True)
+                    except urllib.error.HTTPError:
+                        blob = fetch(shown, binary=True)  # full-size missing: use the size the page showed
+                except Exception:
+                    continue
+                if len(blob) < 10 * 1024:
+                    continue
+                ext = os.path.splitext(urllib.parse.urlparse(u).path)[1].lower() or ".jpg"
+                pth = os.path.join(tmp, "%02d-%s" % (i, os.path.basename(urllib.parse.urlparse(u).path)))
+                with open(pth, "wb") as f:
+                    f.write(blob)
+                files.append(pth)
+            proj = {"title": title[:160], "summary": summary, "body": body, "year": year, "category": cat,
+                    "disciplines": ", ".join(disc), "files": files}
+            try:
+                wid, sent, k2, f2, notes = send_project(site, conn, proj, via="wordpress", source=it.get("link", base),
+                                                        source_key="wp:" + it.get("link", str(it.get("id"))))
+                if vid and wid:
+                    site.post_json("update", {"id": wid, "video_url": vid.group(1)})
+                say("  ✓ draft: %d images uploaded%s" % (sent, ("; " + "; ".join(notes[:2])) if notes else ""))
+            except RuntimeError as e:
+                say("  ✖ %s" % e)
+    if not dry:
+        say("\nDone. All imported as drafts. Review them in Admin → Work → Needs details.")
+
+
 # ---------------------------------------------------------------------------- drafts for Claude
 FILL_GUIDE = """# Fill in draft details
 
@@ -724,6 +821,7 @@ def main():
     sp.add_parser("unwatch")
     s = sp.add_parser("web"); s.add_argument("urls", nargs="+"); s.add_argument("--category"); s.add_argument("--year", type=int)
     s = sp.add_parser("instagram"); s.add_argument("folder"); s.add_argument("--since", type=int); s.add_argument("--category", default="personal")
+    s = sp.add_parser("wordpress"); s.add_argument("url"); s.add_argument("--type"); s.add_argument("--dry-run", action="store_true"); s.add_argument("--max", type=int, default=24)
     s = sp.add_parser("drafts"); s.add_argument("action", choices=["pull", "push"]); s.add_argument("folder")
     a = ap.parse_args()
 
@@ -769,6 +867,8 @@ def main():
         ap.print_help()
         return
 
+    if a.cmd == "wordpress" and a.dry_run:
+        return import_wordpress(None, a.url, a.type, True)
     site = Site(load_config())
     if a.cmd == "upload":
         plan = read_plan(a.plan, a.max)
@@ -802,6 +902,8 @@ def main():
         import_web(site, a.urls, a.category, a.year)
     elif a.cmd == "instagram":
         import_instagram(site, a.folder, a.since, a.category)
+    elif a.cmd == "wordpress":
+        import_wordpress(site, a.url, a.type, a.dry_run, a.max)
     elif a.cmd == "drafts":
         (drafts_pull if a.action == "pull" else drafts_push)(site, a.folder)
 
