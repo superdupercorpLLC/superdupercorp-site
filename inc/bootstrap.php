@@ -27,6 +27,14 @@ const CATEGORIES = [
 function url(string $path = ''): string { return BASE . ltrim($path, '/'); }
 function e(?string $s): string { return htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 
+// First run: copy the starter content into data/. After that, data/ belongs to the live site
+// and is never part of Git or a deploy, so publishing new code can't overwrite your work.
+foreach (['site', 'works'] as $seed) {
+    if (!is_file(DATA_DIR . "/$seed.json") && is_file(ROOT . "/inc/seed/$seed.json")) {
+        @copy(ROOT . "/inc/seed/$seed.json", DATA_DIR . "/$seed.json");
+    }
+}
+
 function read_json(string $name, $default = []) {
     $f = DATA_DIR . "/$name.json";
     if (!is_file($f)) return $default;

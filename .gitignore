@@ -8,3 +8,5 @@ uploads/*
 __pycache__/
 *.pyc
 data/hashes.json
+data/*.json
+data/*.txt
