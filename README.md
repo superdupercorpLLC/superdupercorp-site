@@ -40,6 +40,17 @@ Keep MP4 uploads for short clips.
 
 Images are resized automatically: 2400px for full size and 1000px for thumbnails, saved as WebP.
 
+### Video
+- **YouTube / Vimeo:** in a project, paste links into **Add video links** (one per line). Unlisted Vimeo links and
+  YouTube Shorts work. The page shows a poster with a play button; the real player loads only when someone presses
+  play (faster pages, no YouTube tracking until then).
+- **Video files** (MP4, MOV, WebM): upload them with the images. Tick **Loop silently** for short motion pieces;
+  they play muted on a loop, like a GIF.
+- Each video has a **shape**: Wide 16:9, Vertical 9:16 (Reels/TikTok), Square, or Portrait 4:5.
+- **Show the first video at the top** (on by default) puts the lead video where the cover image would be. Reorder with the # numbers.
+- Long or high-quality films are best on Vimeo/YouTube (they stream at the right quality for every device). Upload files
+  for short clips and loops.
+
 ### Upload limits
 Shared hosts often cap uploads at 2–64 MB. If big files fail, go to cPanel → *Select PHP Version → Options* (or *MultiPHP INI Editor*) and raise `upload_max_filesize` and `post_max_size` (e.g. 128M), and `max_file_uploads` (e.g. 50).
 

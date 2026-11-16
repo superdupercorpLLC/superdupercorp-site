@@ -8,7 +8,7 @@
  *   POST ?a=create   (JSON)          → create a draft project (idempotent by source_key)
  *   POST ?a=upload   (multipart)     → add a file to a project (deduplicated by content hash)
  *   GET  ?a=drafts[&all=1]           → drafts that still need details
- *   POST ?a=update   (JSON)          → fill in details on a draft
+ *   POST ?a=update   (JSON)          → fill in details on a draft ("videos": [YouTube/Vimeo links] adds videos)
  *   GET  ?a=diag                     → server capabilities + installed code version
  *   POST ?a=self_update              → install the latest code from the site's own GitHub repo
  */
@@ -155,6 +155,7 @@ if ($a === 'upload' && $method === 'POST') {
     foreach ($works as $i => $x) if ($x['id'] === $id) { $idx = $i; break; }
     $w = $works[$idx];
     $item = $s + ['caption' => clean_str($_POST['caption'] ?? '', 240), 'wide' => false, 'sha256' => $sha];
+    if ($s['type'] === 'video') $item['shape'] = isset(VIDEO_SHAPES[$_POST['shape'] ?? '']) ? $_POST['shape'] : '16x9';
     $w['gallery'][] = $item;
     if ((!$w['cover'] || !empty($_POST['make_cover'])) && $s['type'] === 'image') $w['cover'] = ['large' => $s['src'], 'thumb' => $s['thumb']];
     $w['updated'] = date('c');
@@ -190,13 +191,15 @@ if ($a === 'update' && $method === 'POST') {
         if ($w['id'] !== ($in['id'] ?? null)) continue;
         if (($w['status'] ?? '') !== 'draft') out(['error' => 'Only drafts can be changed through the API.'], 409);
         $w = array_merge($w, $fields($in));
+        $videos = is_array($in['videos'] ?? null) ? $in['videos'] : [];
+        $verr = add_video_links($w, $videos);
         $w['needs_details'] = false;
         $w['ai_suggested'] = !empty($in['ai']);
         if (!empty($in['title'])) $w['slug'] = unique_slug($w['title'], $w['id']);
         $w['updated'] = date('c');
         $works[$i] = $w;
         write_json('works', $works);
-        out(['ok' => true, 'id' => $w['id'], 'slug' => $w['slug']]);
+        out(['ok' => true, 'id' => $w['id'], 'slug' => $w['slug'], 'video_errors' => $verr]);
     }
     out(['error' => 'Unknown project id.'], 404);
 }

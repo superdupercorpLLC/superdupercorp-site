@@ -141,3 +141,7 @@ legend { font: 900 20px "Archivo"; font-variation-settings: "wdth" 125; text-tra
 }
 
 .flash--ai { background: var(--blue); color: #fff; font-size: 14px; }
+
+.gal__img { position: relative; background: var(--ink); }
+.gal__badge { position: absolute; left: 6px; top: 6px; font: 700 11px var(--mono); font-style: normal; background: var(--yellow); border: 2px solid var(--ink); padding: 2px 5px; }
+.gal__opts select { font: 400 12px var(--mono); padding: 3px 4px; width: auto; }

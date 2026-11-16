@@ -19,7 +19,7 @@ $nav = ['work' => 'Work', 'about' => 'Studio', 'contact' => 'Contact'];
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="<?= url('assets/css/site.css') ?>?v=1">
+<link rel="stylesheet" href="<?= url('assets/css/site.css') ?>?v=2">
 </head>
 <body class="page-<?= e($active ?: 'home') ?>">
 <a class="skip" href="#main">Skip to content</a>

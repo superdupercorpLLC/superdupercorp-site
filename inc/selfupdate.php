@@ -12,10 +12,11 @@ const REPO = 'superdupercorpLLC/superdupercorp-site';
 const UPDATE_SKIP = ['/^\.git/', '/^tools(\/|$)/', '/^\.cpanel\.yml$/', '/^deploy\.sh$/', '/^dev-router\.php$/',
                      '/^data\/.*\.(json|txt)$/', '/^uploads\/(?!\.htaccess$)/', '/^README\.md$/'];
 
-function http_get(string $url): string {
+if (!function_exists('http_get')) {
+function http_get(string $url, int $timeout = 120): string {
     if (function_exists('curl_init')) {
         $c = curl_init($url);
-        curl_setopt_array($c, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_TIMEOUT => 120,
+        curl_setopt_array($c, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_TIMEOUT => $timeout,
                                CURLOPT_USERAGENT => 'sdc-selfupdate', CURLOPT_HTTPHEADER => ['Accept: application/vnd.github+json']]);
         $body = curl_exec($c);
         $code = (int) curl_getinfo($c, CURLINFO_RESPONSE_CODE);
@@ -28,6 +29,7 @@ function http_get(string $url): string {
     $body = @file_get_contents($url, false, $ctx);
     if ($body === false) throw new RuntimeException("Download failed: $url (enable PHP curl or allow_url_fopen)");
     return $body;
+}
 }
 
 function rrmdir(string $d): void {

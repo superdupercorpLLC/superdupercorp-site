@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $w['body']     = str_replace("\r", '', (string)($_POST['body'] ?? ''));
     $w['credits']  = str_replace("\r", '', (string)($_POST['credits'] ?? ''));
     $w['link']     = filter_var($t('link'), FILTER_VALIDATE_URL) && preg_match('~^https?://~', $t('link')) ? $t('link') : '';
-    $w['video_url']= $t('video_url');
+    $w['lead_video'] = !empty($_POST['lead_video']);
     $w['featured'] = !empty($_POST['featured']);
     $w['status']   = ($_POST['status'] ?? '') === 'published' ? 'published' : 'draft';
     if ($w['title'] === '') $errors[] = 'Give it a title.';
@@ -47,10 +47,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($w['gallery'] ?? [] as $i => $g) {
         $p = $_POST['g'][$i] ?? null;
         if (!$p) { $gal[] = $g; continue; }
-        if (!empty($p['remove'])) { if (($w['cover']['large'] ?? '') === ($g['src'] ?? '')) $w['cover'] = []; remove_upload($g['src'] ?? null); if (($g['thumb'] ?? '') !== ($g['src'] ?? '')) remove_upload($g['thumb'] ?? null); continue; }
+        if (!empty($p['remove'])) { if (in_array($w['cover']['large'] ?? '', [$g['src'] ?? null, $g['thumb'] ?? null], true)) $w['cover'] = []; remove_upload($g['src'] ?? null); if (($g['thumb'] ?? '') !== ($g['src'] ?? '')) remove_upload($g['thumb'] ?? null); continue; }
         if (!empty($p['make_cover']) && ($g['type'] ?? 'image') === 'image') $w['cover'] = ['large' => $g['src'], 'thumb' => $g['thumb'] ?? $g['src']];
         $g['caption'] = trim((string)($p['caption'] ?? ''));
         $g['wide'] = !empty($p['wide']);
+        if (is_video_item($g)) $g['shape'] = isset(VIDEO_SHAPES[$p['shape'] ?? '']) ? $p['shape'] : ($g['shape'] ?? '16x9');
+        if (($g['type'] ?? '') === 'video') $g['loop'] = !empty($p['loop']);
+        if (!empty($p['make_cover']) && ($g['type'] ?? '') === 'embed' && !empty($g['thumb'])) $w['cover'] = ['large' => $g['thumb'], 'thumb' => $g['thumb']];
         $g['_o'] = (float)($p['order'] ?? $i);
         $gal[] = $g;
     }
@@ -71,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         catch (RuntimeException $ex) { $errors[] = $ex->getMessage(); }
     }
     $w['gallery'] = $gal;
+    foreach (add_video_links($w, preg_split('/\R/', (string)($_POST['video_links'] ?? ''))) as $er) $errors[] = $er;
     if (empty($w['cover']) && $gal) foreach ($gal as $g) if (($g['type'] ?? '') === 'image') { $w['cover'] = ['large' => $g['src'], 'thumb' => $g['thumb']]; break; }
 
     if ($w['title'] !== '') {
@@ -130,11 +134,13 @@ $maxUp = ini_get('upload_max_filesize'); $maxPost = ini_get('post_max_size');
     <label>Credits <small>optional</small><textarea name="credits" rows="3" placeholder="Photography: …"><?= e($w['credits']) ?></textarea></label>
 
     <fieldset class="grid2">
-      <label>Video link <small>YouTube or Vimeo</small><input name="video_url" value="<?= e($w['video_url']) ?>" placeholder="https://vimeo.com/…"></label>
       <label>Live link <small>optional</small><input name="link" value="<?= e($w['link']) ?>" placeholder="https://…"></label>
     </fieldset>
 
     <h2>Images &amp; video</h2>
+    <label>Add video links <small>YouTube or Vimeo, one per line. Unlisted Vimeo links work too. Shorts are set to vertical automatically.</small>
+      <textarea name="video_links" rows="3" placeholder="https://vimeo.com/123456789&#10;https://youtu.be/abcdefghijk"></textarea></label>
+    <label class="chk"><input type="checkbox" name="lead_video" value="1"<?= ($w['lead_video'] ?? true) ? ' checked' : '' ?>> Show the first video at the top of the project page (instead of the cover image)</label>
     <p class="hint">Upload limit on your host: <?= e($maxUp) ?> per file, <?= e($maxPost) ?> per save. Images are resized automatically.</p>
 
     <div class="coverbox">
@@ -152,14 +158,19 @@ $maxUp = ini_get('upload_max_filesize'); $maxPost = ini_get('post_max_size');
       <?php foreach ($w['gallery'] as $i => $g): ?>
         <li>
           <div class="gal__img">
-            <?php if (($g['type'] ?? '') === 'video'): ?><video src="<?= e(media_url($g['src'])) ?>" muted></video>
+            <?php if (($g['type'] ?? '') === 'video'): ?><video src="<?= e(media_url($g['src'])) ?>#t=0.1" muted preload="metadata"></video><i class="gal__badge">▶ File</i>
+            <?php elseif (($g['type'] ?? '') === 'embed'): ?><?php if (!empty($g['thumb'])): ?><img src="<?= e($g['thumb']) ?>" alt="" loading="lazy"><?php endif; ?><i class="gal__badge">▶ <?= e(ucfirst($g['provider'])) ?></i>
             <?php else: ?><img src="<?= e(media_url($g['thumb'] ?? $g['src'])) ?>" alt="" loading="lazy"><?php endif; ?>
           </div>
           <input name="g[<?= $i ?>][caption]" value="<?= e($g['caption'] ?? '') ?>" placeholder="Caption (optional)">
           <div class="gal__opts">
             <label title="Position">#<input class="num" name="g[<?= $i ?>][order]" value="<?= $i + 1 ?>" inputmode="numeric"></label>
             <label class="chk"><input type="checkbox" name="g[<?= $i ?>][wide]" value="1"<?= !empty($g['wide']) ? ' checked' : '' ?>> Full width</label>
-            <?php if (($g['type'] ?? '') !== 'video'): ?><label class="chk"><input type="checkbox" name="g[<?= $i ?>][make_cover]" value="1"> Make cover</label><?php endif; ?>
+            <?php if (is_video_item($g)): ?>
+              <select name="g[<?= $i ?>][shape]" aria-label="Video shape"><?php foreach (VIDEO_SHAPES as $sk => $sl): ?><option value="<?= $sk ?>"<?= ($g['shape'] ?? '16x9') === $sk ? ' selected' : '' ?>><?= $sl ?></option><?php endforeach; ?></select>
+            <?php endif; ?>
+            <?php if (($g['type'] ?? '') === 'video'): ?><label class="chk" title="Autoplay muted on a loop, like a GIF. Best for short clips."><input type="checkbox" name="g[<?= $i ?>][loop]" value="1"<?= !empty($g['loop']) ? ' checked' : '' ?>> Loop silently</label><?php endif; ?>
+            <?php if (($g['type'] ?? '') !== 'video' && (($g['type'] ?? '') !== 'embed' || !empty($g['thumb']))): ?><label class="chk"><input type="checkbox" name="g[<?= $i ?>][make_cover]" value="1"> Make cover</label><?php endif; ?>
             <label class="chk danger"><input type="checkbox" name="g[<?= $i ?>][remove]" value="1"> Remove</label>
           </div>
         </li>
@@ -167,7 +178,7 @@ $maxUp = ini_get('upload_max_filesize'); $maxPost = ini_get('post_max_size');
     </ol>
     <?php endif; ?>
     <label class="drop">Add images or video to the gallery
-      <input type="file" name="gallery[]" multiple accept="image/*,video/mp4,video/webm" data-preview>
+      <input type="file" name="gallery[]" multiple accept="image/*,video/mp4,video/webm,video/quicktime" data-preview>
       <span class="drop__list" data-preview-list></span>
     </label>
   </div>

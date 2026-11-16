@@ -22,6 +22,7 @@ page_head('Work', 'The full archive of ' . setting('studio_name', 'SUPER DUPER C
     <?php endforeach; ?>
   </div>
   <div class="filters__row">
+    <button class="chip chip--video" data-videofilter aria-pressed="false">▶ Video</button>
     <label class="sr-only" for="f-tag">Discipline</label>
     <select id="f-tag" class="select" data-tag>
       <option value="">Any discipline</option>
@@ -48,9 +49,9 @@ page_head('Work', 'The full archive of ' . setting('studio_name', 'SUPER DUPER C
     <a class="card" href="<?= work_url($w) ?>"
        data-cat="<?= e($w['category'] ?? '') ?>"
        data-tags="<?= e(strtolower(implode('|', $w['disciplines'] ?? []))) ?>"
-       data-hay="<?= e($hay) ?>" data-y="<?= e((string)$y) ?>"
+       data-hay="<?= e($hay) ?>" data-y="<?= e((string)$y) ?>" data-video="<?= has_video($w) ? '1' : '' ?>"
        style="--cc:<?= e(cat_color($w['category'] ?? '')) ?>">
-      <div class="card__media"><?= cover($w) ?></div>
+      <div class="card__media"><?php if (has_video($w)): ?><span class="card__play" aria-label="Has video">▶</span><?php endif; ?><?= cover($w) ?></div>
       <div class="card__meta">
         <span class="card__title"><?= e($w['title']) ?></span>
         <span class="card__sub"><?= e($w['client'] ?? '') ?></span>

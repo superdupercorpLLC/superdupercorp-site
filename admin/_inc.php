@@ -40,7 +40,7 @@ function admin_head(string $title, string $active = ''): void {
 <title><?= e($title) ?> · Admin</title>
 <link rel="icon" href="<?= url('assets/favicon.svg') ?>" type="image/svg+xml">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="<?= url('admin/admin.css') ?>?v=1">
+<link rel="stylesheet" href="<?= url('admin/admin.css') ?>?v=2">
 </head><body>
 <?php if (!empty($_SESSION['sdc_admin'])): ?>
 <header class="a-bar">

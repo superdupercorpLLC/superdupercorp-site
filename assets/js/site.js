@@ -17,6 +17,8 @@
     const empty = wrap.querySelector('[data-empty]');
     const tagSel = filters.querySelector('[data-tag]');
     const q = filters.querySelector('[data-q]');
+    const vbtn = filters.querySelector('[data-videofilter]');
+    let onlyVideo = false;
     const store = (k, v) => { try { v === undefined ? (v = localStorage.getItem(k)) : localStorage.setItem(k, v); } catch (e) { v = null; } return v; };
     let cat = window.__initialCat || 'all';
 
@@ -26,6 +28,7 @@
       const visibleYears = new Set();
       cards.forEach(c => {
         const ok = (cat === 'all' || c.dataset.cat === cat)
+          && (!onlyVideo || c.dataset.video === '1')
           && (!tag || c.dataset.tags.split('|').includes(tag))
           && (!s || c.dataset.hay.includes(s));
         c.hidden = !ok;
@@ -40,6 +43,7 @@
     };
     filters.querySelectorAll('[data-cat]').forEach(b => b.addEventListener('click', () => { cat = b.dataset.cat; apply(); }));
     tagSel.addEventListener('change', apply);
+    if (vbtn) vbtn.addEventListener('click', () => { onlyVideo = !onlyVideo; vbtn.setAttribute('aria-pressed', String(onlyVideo)); apply(); });
     q.addEventListener('input', apply);
 
     const setView = v => {
@@ -51,6 +55,30 @@
     const saved = store('sdc-view');
     if (saved === 'list' || saved === 'grid') setView(saved);
     apply();
+  }
+
+  // video: load the YouTube/Vimeo player only when someone presses play
+  document.addEventListener('click', ev => {
+    const a = ev.target.closest('[data-embed]');
+    if (!a) return;
+    ev.preventDefault();
+    const f = document.createElement('iframe');
+    f.src = a.dataset.embed;
+    f.title = a.dataset.title || 'Video';
+    f.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media';
+    f.allowFullscreen = true;
+    a.replaceWith(f);
+    f.focus();
+  });
+  // only one uploaded video plays at a time (looping clips are left alone)
+  document.addEventListener('play', ev => {
+    if (!(ev.target instanceof HTMLVideoElement) || ev.target.loop) return;
+    document.querySelectorAll('video').forEach(v => { if (v !== ev.target && !v.loop && !v.paused) v.pause(); });
+  }, true);
+  // looping clips pause when off screen (saves battery and data)
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(es => es.forEach(e => { const v = e.target; e.isIntersecting ? v.play().catch(() => {}) : v.pause(); }), { threshold: 0.15 });
+    document.querySelectorAll('.vid--loop video').forEach(v => io.observe(v));
   }
 
   // lightbox

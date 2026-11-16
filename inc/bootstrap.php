@@ -151,6 +151,8 @@ function start_session(): void {
     session_start();
 }
 
+require_once __DIR__ . '/video.php';
+
 function page_head(string $title = '', string $desc = '', string $active = ''): void {
     $GLOBALS['__active'] = $active;
     $GLOBALS['__title']  = $title;

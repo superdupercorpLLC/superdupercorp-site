@@ -32,26 +32,30 @@ page_head($w['title'], $w['summary'] ?? '', 'work');
     <?php if (!empty($w['link'])): ?><div><dt>Live</dt><dd><a href="<?= e($w['link']) ?>" target="_blank" rel="noopener">Visit ↗</a></dd></div><?php endif; ?>
   </dl>
 
-  <div class="project__hero">
-    <?php if (!empty($w['cover']['large'])): ?>
+  <?php
+    $media = project_media($w);
+    $lead = null;
+    if (($w['lead_video'] ?? true) !== false) foreach ($media as $k => $g) if (is_video_item($g)) { $lead = $g; unset($media[$k]); break; }
+  ?>
+  <div class="project__hero<?= $lead ? ' project__hero--video' : '' ?>">
+    <?php if ($lead): ?>
+      <?= render_video($lead, $w['title']) ?>
+      <?php if (!empty($lead['caption'])): ?><p class="project__cap"><?= e($lead['caption']) ?></p><?php endif; ?>
+    <?php elseif (!empty($w['cover']['large'])): ?>
       <img src="<?= e(media_url($w['cover']['large'])) ?>" alt="<?= e($w['title']) ?>">
-    <?php elseif (!($w['video_url'] ?? '')): ?>
+    <?php else: ?>
       <?= poster($w, 'poster--hero') ?>
     <?php endif; ?>
   </div>
 
-  <?php if (($emb = video_embed($w['video_url'] ?? ''))): ?>
-    <div class="project__video"><iframe src="<?= e($emb) ?>" title="<?= e($w['title']) ?> video" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>
-  <?php endif; ?>
-
   <?php if (!empty($w['body'])): ?><div class="project__body prose"><?= prose($w['body']) ?></div><?php endif; ?>
 
-  <?php if (!empty($w['gallery'])): ?>
+  <?php if ($media): ?>
   <div class="gallery" data-gallery>
-    <?php foreach ($w['gallery'] as $g): ?>
-      <figure class="gallery__item<?= !empty($g['wide']) ? ' is-wide' : '' ?>">
-        <?php if (($g['type'] ?? 'image') === 'video'): ?>
-          <video src="<?= e(media_url($g['src'])) ?>" controls playsinline preload="metadata"></video>
+    <?php foreach ($media as $g): $isVid = is_video_item($g); $wide = !empty($g['wide']) || $isVid; /* videos always get their own centred row */ ?>
+      <figure class="gallery__item<?= $wide ? ' is-wide' : '' ?><?= $isVid ? ' is-video' : '' ?>">
+        <?php if ($isVid): ?>
+          <?= render_video($g, $w['title']) ?>
         <?php else: ?>
           <a href="<?= e(media_url($g['src'])) ?>" data-lightbox><img src="<?= e(media_url($g['thumb'] ?? $g['src'])) ?>" alt="<?= e($g['caption'] ?? $w['title']) ?>" loading="lazy" decoding="async"></a>
         <?php endif; ?>

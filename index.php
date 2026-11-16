@@ -39,7 +39,7 @@ page_head('', '', 'home');
   <div class="feature-grid">
     <?php foreach ($featured as $i => $w): ?>
       <a class="card card--f<?= $i ?>" href="<?= work_url($w) ?>" style="--cc:<?= e(cat_color($w['category'] ?? '')) ?>">
-        <div class="card__media"><?= cover($w, $i === 0 ? 'large' : 'thumb') ?></div>
+        <div class="card__media"><?php if (has_video($w)): ?><span class="card__play" aria-label="Has video">▶</span><?php endif; ?><?= cover($w, $i === 0 ? 'large' : 'thumb') ?></div>
         <div class="card__meta">
           <span class="card__title"><?= e($w['title']) ?></span>
           <span class="card__sub"><?= e(implode(' · ', array_filter([$w['client'] ?? '', $w['year'] ?? '']))) ?></span>
