@@ -13,6 +13,7 @@
  *   POST ?a=self_update              → install the latest code from the site's own GitHub repo
  */
 declare(strict_types=1);
+const SDC_API = true;
 require dirname(__DIR__) . '/inc/bootstrap.php';
 require dirname(__DIR__) . '/inc/media.php';
 
@@ -32,6 +33,8 @@ function body_json(): array {
 function clean_str($v, int $max = 300): string { return mb_substr(trim(is_scalar($v) ? (string) $v : ''), 0, $max); }
 
 // --- auth -------------------------------------------------------------------
+// Keys must never travel unencrypted. (No redirect: it would drop the upload and resend the key.)
+if (!is_https() && !is_local_request()) out(['error' => 'Use https:// for the site address in the uploader.'], 403);
 $hdr = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
 if (!$hdr && function_exists('getallheaders')) foreach (getallheaders() as $k => $v) if (strcasecmp($k, 'Authorization') === 0) $hdr = $v;
 if (!$hdr && !empty($_SERVER['HTTP_X_SDC_KEY'])) $hdr = 'Bearer ' . $_SERVER['HTTP_X_SDC_KEY'];
@@ -40,7 +43,7 @@ $auth = read_json('auth', []);
 $hash = hash('sha256', $m[1]);
 $keyIdx = null;
 foreach ($auth['api_keys'] ?? [] as $i => $k) if (hash_equals($k['hash'], $hash)) { $keyIdx = $i; break; }
-if ($keyIdx === null) out(['error' => 'Uploader key not recognised (it may have been revoked).'], 403);
+if ($keyIdx === null) { security_log('api_key_rejected'); out(['error' => 'Uploader key not recognised (it may have been revoked).'], 403); }
 if (time() - strtotime($auth['api_keys'][$keyIdx]['last_used'] ?? '2000-01-01') > 300) {
     $auth['api_keys'][$keyIdx]['last_used'] = date('c');
     write_json('auth', $auth);
@@ -69,13 +72,14 @@ $fields = function (array $in): array {
 // Any crash becomes a readable JSON error (and lands in the PHP error log) instead of a bare 500.
 set_exception_handler(function (Throwable $e) {
     error_log('[sdc api] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
-    out(['error' => 'Server error: ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')'], 500);
+    out(['error' => 'Server error: ' . $e->getMessage()], 500);
 });
 register_shutdown_function(function () {
     $e = error_get_last();
     if ($e && in_array($e['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR], true) && !headers_sent()) {
         http_response_code(500);
-        echo json_encode(['error' => 'Fatal: ' . $e['message'] . ' (' . basename($e['file']) . ':' . $e['line'] . ')']);
+        echo json_encode(['error' => 'Server error. Details are in the PHP error log.']);
+        error_log('[sdc api] fatal: ' . $e['message'] . ' @ ' . $e['file'] . ':' . $e['line']);
     }
 });
 
@@ -96,6 +100,7 @@ if ($a === 'diag') {
          'memory_limit' => ini_get('memory_limit'), 'max_execution_time' => ini_get('max_execution_time'),
          'writable' => ['uploads' => is_writable(ROOT . '/uploads'), 'data' => is_writable(DATA_DIR)],
          'data_outside_webroot' => !str_starts_with(DATA_DIR, ROOT . '/'),
+         'encryption' => ['available' => can_encrypt(), 'key_outside_data' => key_dir() !== DATA_DIR],
          'can_run_commands' => ['exec' => $can('exec'), 'shell_exec' => $can('shell_exec'), 'proc_open' => $can('proc_open')],
          'git' => $git ?: null, 'phar' => class_exists('PharData'), 'curl' => function_exists('curl_init'),
          'allow_url_fopen' => (bool) ini_get('allow_url_fopen'), 'version' => read_json('version', null)]);
@@ -103,6 +108,7 @@ if ($a === 'diag') {
 
 if ($a === 'self_update' && $method === 'POST') {
     require dirname(__DIR__) . '/inc/selfupdate.php';
+    security_log('self_update', 'key: ' . ($auth['api_keys'][$keyIdx]['label'] ?? ''));
     @set_time_limit(300);
     try { out(['ok' => true] + self_update('main')); }
     catch (RuntimeException $e) { out(['error' => $e->getMessage()], 502); }

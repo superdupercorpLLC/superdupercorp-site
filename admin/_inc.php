@@ -3,16 +3,60 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/inc/bootstrap.php';
 require dirname(__DIR__) . '/inc/media.php';
+if (!is_https() && !is_local_request()) { http_response_code(403); exit('The admin only works over https://'); }
+send_security_headers(true);
 start_session();
-header('X-Frame-Options: DENY');
 header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
 
 
 function auth(): array { return read_json('auth', []); }
 
+const SESSION_IDLE = 2 * 3600;   // log out after 2 hours without activity
+const SESSION_MAX  = 12 * 3600;  // and always after 12 hours
+
+function logged_in(): bool {
+    if (empty($_SESSION['sdc_admin'])) return false;
+    $now = time();
+    $ok = $now - (int) ($_SESSION['seen'] ?? 0) < SESSION_IDLE
+       && $now - (int) ($_SESSION['login_at'] ?? 0) < SESSION_MAX
+       && (int) ($_SESSION['epoch'] ?? -1) === (int) (auth()['session_epoch'] ?? 0); // bumped on password change
+    if (!$ok) { $_SESSION = []; session_regenerate_id(true); return false; }
+    $_SESSION['seen'] = $now;
+    return true;
+}
+
 function require_login(): void {
-    if (empty($_SESSION['sdc_admin'])) { header('Location: ' . url('admin/login.php')); exit; }
+    if (!logged_in()) { header('Location: ' . url('admin/login.php')); exit; }
+}
+
+function login_user(): void {
+    session_regenerate_id(true);
+    unset($_SESSION['pending_2fa']);
+    $_SESSION['sdc_admin'] = true;
+    $_SESSION['login_at'] = $_SESSION['seen'] = time();
+    $_SESSION['epoch'] = (int) (auth()['session_epoch'] ?? 0);
+    security_log('login');
+}
+
+/** Failed attempts (password, setup code, 2FA code) in the last 15 minutes. */
+function too_many_fails(array $auth, string $ip): bool {
+    $cut = time() - 900;
+    $mine = count(array_filter($auth['fails'][$ip] ?? [], fn($t) => $t > $cut));
+    $all = 0;
+    foreach ($auth['fails'] ?? [] as $list) $all += count(array_filter((array) $list, fn($t) => $t > $cut));
+    return $mine >= 8 || $all >= 40; // the global cap slows attacks spread over many IPs
+}
+
+function record_fail(array &$auth, string $ip, string $what): void {
+    $cut = time() - 900;
+    foreach ($auth['fails'] ?? [] as $k => $list) {
+        $auth['fails'][$k] = array_values(array_filter((array) $list, fn($t) => $t > $cut));
+        if (!$auth['fails'][$k]) unset($auth['fails'][$k]);
+    }
+    $auth['fails'][$ip][] = time();
+    write_json('auth', $auth);
+    security_log('login_failed', $what);
 }
 
 function csrf(): string {
@@ -31,7 +75,7 @@ function redirect(string $to): void { header('Location: ' . $to); exit; }
 
 
 function admin_head(string $title, string $active = ''): void {
-    $unread = count(array_filter(read_json('messages', []), fn($m) => empty($m['read'])));
+    $unread = unread_messages();
     $f = flash();
     ?><!doctype html>
 <html lang="en"><head>
@@ -42,7 +86,7 @@ function admin_head(string $title, string $active = ''): void {
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?= url('admin/admin.css') ?>?v=2">
 </head><body>
-<?php if (!empty($_SESSION['sdc_admin'])): ?>
+<?php if (logged_in()): ?>
 <header class="a-bar">
   <a class="a-mark" href="<?= url('admin/') ?>"><span class="dot"></span>Admin</a>
   <nav>

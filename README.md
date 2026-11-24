@@ -60,8 +60,27 @@ See **`tools/sdc/README.md`**. In short: make a key in **Admin → Site copy →
 Everything arrives as a draft; Claude can fill in the details (`sdc drafts pull/push`); you publish.
 You don't need to upload the `tools/` folder to your host.
 
+## Security and client data
+- **HTTPS only.** Pages redirect to `https://`, the admin refuses plain HTTP, and the uploader API rejects keys sent
+  over plain HTTP. HSTS, a Content-Security-Policy and other security headers are sent from PHP (this host ignores
+  the header lines in `.htaccess`).
+- **Contact messages are encrypted at rest** (libsodium, or AES-256-GCM via OpenSSL). The key lives in its own folder,
+  `~/sdc-site-keys/encryption.key`, outside the web root and apart from the data folder, so a copy of the data alone
+  can't be read. Older plain-text messages are encrypted automatically the first time the Inbox is opened.
+- **Data minimisation.** Only the network part of a sender's IP is stored (e.g. `203.0.113.0`). Messages are
+  deleted automatically after 365 days; change this in **Site copy → Privacy** (0 = keep forever). You can also stop
+  notification emails from containing the message itself, since email is not encrypted.
+- **Admin login.** 12+ character passwords, optional **two-step login** (authenticator app codes) in
+  **Site copy → Security**, which we strongly recommend. Sessions end after 2 hours idle or 12 hours total, and changing
+  the password signs out every other browser. Failed passwords, setup codes and 2FA codes are rate-limited per IP and
+  overall. Lost your phone? Delete the `"totp"` entry from `auth.json` in the data folder.
+- **Security log.** Logins, failed attempts, password and 2FA changes, uploader key changes and rejected keys are listed
+  under **Site copy → Security**.
+
 ## Backups
-All your content is in two folders: **`data/`** (text) and **`uploads/`** (media). Download both now and then.
+All your content is in two folders: **`data/`** (text) and **`uploads/`** (media). On the live server, data is kept in
+`~/sdc-site-data`. Download both now and then. **Also back up `~/sdc-site-keys/` and keep that copy somewhere separate
+from the data backup:** without the key, saved Inbox messages can't be decrypted.
 
 ## Local preview (for developers)
 ```

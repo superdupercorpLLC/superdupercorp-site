@@ -140,7 +140,7 @@ function render_video(array $g, string $label = 'video'): string {
         $name = $g['provider'] === 'vimeo' ? 'Vimeo' : 'YouTube';
         return '<div class="vid vid--' . $shape . '">'
              . '<a class="vid__facade" href="' . e($g['url']) . '" data-embed="' . e($g['embed']) . '" data-title="' . e($title) . '" target="_blank" rel="noopener">'
-             . ($poster ? '<img src="' . e($poster) . '" alt="" loading="lazy" decoding="async" onerror="this.remove()">' : '')
+             . ($poster ? '<img src="' . e($poster) . '" alt="" loading="lazy" decoding="async" data-hide-on-error>' : '')
              . '<span class="vid__play" aria-hidden="true"></span>'
              . '<span class="vid__label"><span class="sr-only">Play video: ' . e($title) . '</span>' . ($own ? '<span aria-hidden="true">' . e($own) . '</span>' : '<span></span>') . ' <i>' . $name . '</i></span>'
              . '</a></div>';

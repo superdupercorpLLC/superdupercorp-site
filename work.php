@@ -62,5 +62,5 @@ page_head('Work', 'The full archive of ' . setting('studio_name', 'SUPER DUPER C
   <?php endforeach; ?>
   <p class="works__empty" data-empty hidden>Nothing matches that yet. The archive is still growing.</p>
 </section>
-<script>window.__initialCat = <?= json_encode($cat) ?>;</script>
+<script nonce="<?= e(csp_nonce()) ?>">window.__initialCat = <?= json_encode($cat) ?>;</script>
 <?php page_foot(); ?>

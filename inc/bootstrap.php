@@ -24,6 +24,13 @@ define('ROOT', dirname(__DIR__));
 })();
 define('UPLOAD_DIR', ROOT . '/uploads');
 
+require_once __DIR__ . '/security.php';
+// Every request: HTTPS only (pages redirect; the API refuses plain HTTP itself), plus security headers.
+if (PHP_SAPI !== 'cli') {
+    if (!defined('SDC_API') && in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) force_https();
+    send_security_headers();
+}
+
 const CATEGORIES = [
     'personal'  => ['label' => 'Personal & Art', 'short' => 'Art',       'color' => '#ff3b1f'],
     'commercial'=> ['label' => 'Commercial',     'short' => 'Commercial','color' => '#ffd400'],
@@ -145,9 +152,12 @@ function cover(array $w, string $size = 'thumb'): string {
 
 function start_session(): void {
     if (session_status() === PHP_SESSION_ACTIVE) return;
-    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    ini_set('session.use_strict_mode', '1');     // never accept a session id we didn't issue
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.sid_length', '48');
+    ini_set('session.sid_bits_per_character', '6');
     session_name('sdc');
-    session_set_cookie_params(['lifetime' => 0, 'path' => BASE, 'httponly' => true, 'samesite' => 'Lax', 'secure' => $https]);
+    session_set_cookie_params(['lifetime' => 0, 'path' => BASE, 'httponly' => true, 'samesite' => 'Lax', 'secure' => is_https()]);
     session_start();
 }
 

@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/_inc.php';
 require_login();
-$msgs = read_json('messages', []);
+$msgs = load_messages();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($msgs[$i])) {
         if (($_POST['action'] ?? '') === 'delete') array_splice($msgs, $i, 1);
         else $msgs[$i]['read'] = !($msgs[$i]['read'] ?? false);
-        write_json('messages', $msgs);
+        save_messages($msgs);
     }
     redirect(url('admin/messages.php'));
 }
@@ -17,6 +17,8 @@ admin_head('Inbox', 'messages');
 ?>
 <div class="a-head"><h1>Inbox</h1></div>
 <p class="lede">Everything sent through the contact form. A copy is emailed to <b><?= e(setting('email') ?: '(no email set in Site copy)') ?></b>, but shared hosts sometimes drop email, so this list is the backup.</p>
+<p class="hint"><?php if (can_encrypt()): ?>🔒 Messages are stored encrypted on the server.<?php else: ?><b>Warning:</b> this server has neither the sodium nor the openssl PHP extension, so messages are stored unencrypted. Turn one on in cPanel → Select PHP Version → Extensions.<?php endif; ?>
+<?= message_retention_days() > 0 ? 'Messages older than ' . message_retention_days() . ' days are deleted automatically.' : 'Messages are kept until you delete them.' ?> Change this in Site copy → Privacy.</p>
 <?php if (!$msgs): ?><p class="empty">No messages yet.</p><?php endif; ?>
 <div class="msgs">
 <?php foreach (array_reverse($msgs, true) as $i => $m): ?>

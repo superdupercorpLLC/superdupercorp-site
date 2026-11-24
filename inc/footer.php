@@ -18,6 +18,6 @@
     <div class="foot__legal">© <?= date('Y') ?> <?= e(setting('legal_name', 'SUPER DUPER CORP LLC')) ?>. All work © its respective owners.</div>
   </div>
 </footer>
-<script src="<?= url('assets/js/site.js') ?>?v=2" defer></script>
+<script src="<?= url('assets/js/site.js') ?>?v=3" defer></script>
 </body>
 </html>

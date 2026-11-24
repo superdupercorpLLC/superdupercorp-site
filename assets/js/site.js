@@ -1,5 +1,8 @@
 // SUPER DUPER CORP — small enhancements. Site works without JS.
 (() => {
+  // video posters that fail to load are removed (no inline onerror: blocked by the Content-Security-Policy)
+  document.addEventListener('error', e => { if (e.target.matches?.('img[data-hide-on-error]')) e.target.remove(); }, true);
+  document.querySelectorAll('img[data-hide-on-error]').forEach(i => { if (i.complete && !i.naturalWidth) i.remove(); });
   // mobile menu
   const t = document.querySelector('.bar__toggle'), nav = document.getElementById('nav');
   if (t && nav) t.addEventListener('click', () => {

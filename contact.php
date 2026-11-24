@@ -17,12 +17,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (mb_strlen($v['message']) > 8000) {
         $err = 'That message is very long. Trim it down a bit, or just email us.';
     } else {
-        $msgs = read_json('messages', []);
-        $msgs[] = $v + ['at' => date('c'), 'ip' => $_SERVER['REMOTE_ADDR'] ?? '', 'read' => false];
-        write_json('messages', array_slice($msgs, -500));
+        // Stored encrypted (see inc/security.php); only the network part of the IP is kept.
+        $msgs = load_messages();
+        $msgs[] = $v + ['at' => date('c'), 'ip' => anonymise_ip((string) ($_SERVER['REMOTE_ADDR'] ?? '')), 'read' => false];
+        save_messages(array_slice($msgs, -500));
         if ($to = setting('email')) {
             $clean = fn($s) => str_replace(["\r", "\n"], ' ', $s);
-            $body = "Name: {$v['name']}\nEmail: {$v['email']}\nCompany: {$v['company']}\nType: {$v['kind']}\n\n{$v['message']}\n";
+            $inbox = (is_local_request() && !is_https() ? 'http' : 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . url('admin/messages.php');
+            $body = setting('email_full_text', '1') === '1'
+                ? "Name: {$v['name']}\nEmail: {$v['email']}\nCompany: {$v['company']}\nType: {$v['kind']}\n\n{$v['message']}\n"
+                : "You have a new enquiry from {$v['name']}. For privacy the details aren't included in this email.\nRead it in the Inbox: $inbox\n";
             $host = preg_replace('/^www\./', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
             @mail($to, '=?UTF-8?B?' . base64_encode('New enquiry: ' . $clean($v['name'])) . '?=', $body,
                 "From: website@{$host}\r\nReply-To: " . $clean($v['email']) . "\r\nContent-Type: text/plain; charset=UTF-8");

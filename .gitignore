@@ -10,3 +10,4 @@ __pycache__/
 data/hashes.json
 data/*.json
 data/*.txt
+data/*.key
