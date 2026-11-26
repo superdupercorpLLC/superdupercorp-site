@@ -102,7 +102,7 @@ if ($a === 'diag') {
          'data_outside_webroot' => !str_starts_with(DATA_DIR, ROOT . '/'),
          'encryption' => ['available' => can_encrypt(), 'key_outside_data' => key_dir() !== DATA_DIR],
          'can_run_commands' => ['exec' => $can('exec'), 'shell_exec' => $can('shell_exec'), 'proc_open' => $can('proc_open')],
-         'git' => $git ?: null, 'phar' => class_exists('PharData'), 'curl' => function_exists('curl_init'),
+         'git' => $git ?: null, 'github_key' => !empty($auth['github_token']), 'phar' => class_exists('PharData'), 'curl' => function_exists('curl_init'),
          'allow_url_fopen' => (bool) ini_get('allow_url_fopen'), 'version' => read_json('version', null)]);
 }
 

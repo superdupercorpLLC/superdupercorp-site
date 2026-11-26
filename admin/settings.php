@@ -41,6 +41,38 @@ $defaults = ['message_retention_days' => '365', 'email_full_text' => '1'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
+    if (isset($_POST['gh_action'])) {
+        require dirname(__DIR__) . '/inc/selfupdate.php';
+        $a = auth();
+        if ($_POST['gh_action'] === 'save') {
+            $tok = trim((string)($_POST['gh_token'] ?? ''));
+            if (!preg_match('/^(github_pat_[A-Za-z0-9_]{20,255}|ghp_[A-Za-z0-9]{36})$/', $tok)) {
+                flash('That doesn’t look like a GitHub access key. It should start with github_pat_', 'err');
+            } else {
+                $prev = $a['github_token'] ?? null;
+                $a['github_token'] = seal($tok);
+                write_json('auth', $a);
+                try {
+                    $repo = json_decode(github_get('/repos/' . REPO, 20), true);
+                    if (!empty($repo['permissions']['push']) || !empty($repo['permissions']['admin']))
+                        flash('Saved, but this key can also CHANGE the code. For safety, make one with read-only “Contents” access.', 'err');
+                    else flash('GitHub access key saved (encrypted). Self-update works with ' . (!empty($repo['private']) ? 'the private repository.' : 'the repository; you can now make it private.'));
+                    security_log('github_key_saved');
+                } catch (RuntimeException $ex) {
+                    if ($prev) $a['github_token'] = $prev; else unset($a['github_token']);
+                    write_json('auth', $a);
+                    flash('Not saved: GitHub didn’t accept that key for ' . REPO . '. Check it has access to this repository.', 'err');
+                }
+            }
+        } elseif ($_POST['gh_action'] === 'remove') {
+            unset($a['github_token']); write_json('auth', $a); security_log('github_key_removed'); flash('GitHub access key removed.');
+        } elseif ($_POST['gh_action'] === 'update') {
+            @set_time_limit(300);
+            try { $v = self_update('main'); security_log('self_update', 'from admin'); flash('Site code updated to ' . $v['short'] . ': ' . $v['message'] . ($v['failed'] ? ' (' . count($v['failed']) . ' files could not be written)' : '')); }
+            catch (RuntimeException $ex) { flash('Update failed: ' . $ex->getMessage(), 'err'); }
+        }
+        redirect(url('admin/settings.php') . '#github');
+    }
     if (isset($_POST['totp_action'])) {
         $a = auth();
         $pwOk = password_verify((string)($_POST['current_password'] ?? ''), $a['hash'] ?? '');
@@ -178,7 +210,8 @@ $host = preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? 'site'));
 $log = array_reverse(read_json('security-log', []));
 $labels = ['login' => 'Logged in', 'login_failed' => 'Failed login', 'password_set' => 'Password set', 'password_changed' => 'Password changed',
            '2fa_enabled' => 'Two-step login on', '2fa_disabled' => 'Two-step login off', 'api_key_created' => 'Uploader key created',
-           'api_key_revoked' => 'Uploader key revoked', 'api_key_rejected' => 'Wrong uploader key used', 'self_update' => 'Code updated', 'logout' => 'Logged out'];
+           'api_key_revoked' => 'Uploader key revoked', 'api_key_rejected' => 'Wrong uploader key used', 'self_update' => 'Code updated', 'logout' => 'Logged out',
+           'github_key_saved' => 'GitHub access key saved', 'github_key_removed' => 'GitHub access key removed'];
 ?>
 <section class="panel" id="security" style="max-width:860px;margin-top:40px">
   <h2 style="margin-top:0">Security</h2>
@@ -206,6 +239,18 @@ $labels = ['login' => 'Logged in', 'login_failed' => 'Failed login', 'password_s
       <button class="btn btn--small">Turn on</button></form>
     <p class="hint">Lost your phone? In cPanel File Manager, open <code>auth.json</code> in the site’s data folder and delete the <code>"totp"</code> entry.</p>
   <?php endif; ?>
+
+  <h3 id="github">Code updates from GitHub</h3>
+  <?php $ver = read_json('version', []); ?>
+  <p class="hint">Installed code: <?= !empty($ver['short']) ? '<b>' . e($ver['short']) . '</b> · ' . e($ver['message'] ?? '') . ' · ' . e(substr((string) ($ver['at'] ?? ''), 0, 10)) : 'unknown' ?>.
+     <?= !empty($a['github_token']) ? '🔒 A read-only GitHub access key is saved (encrypted), so updates work with a private repository.' : 'No GitHub access key saved: updates only work while the repository is public.' ?></p>
+  <form method="post" class="row" style="flex-wrap:wrap"><?= csrf_field() ?><input type="hidden" name="gh_action" value="save">
+    <input type="password" name="gh_token" placeholder="github_pat_…" required autocomplete="off" style="max-width:320px">
+    <button class="btn btn--small"><?= !empty($a['github_token']) ? 'Replace key' : 'Save key' ?></button></form>
+  <div class="row" style="margin-top:8px">
+    <form method="post"><?= csrf_field() ?><input type="hidden" name="gh_action" value="update"><button class="btn btn--small" data-confirm="Install the latest code from GitHub now?">Update site code now</button></form>
+    <?php if (!empty($a['github_token'])): ?><form method="post"><?= csrf_field() ?><input type="hidden" name="gh_action" value="remove"><button class="btn btn--small btn--danger" data-confirm="Remove the GitHub access key?">Remove key</button></form><?php endif; ?>
+  </div>
 
   <h3>Recent security activity</h3>
   <?php if (!$log): ?><p class="hint">Nothing yet.</p><?php else: ?>

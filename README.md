@@ -74,6 +74,9 @@ You don't need to upload the `tools/` folder to your host.
   **Site copy → Security**, which we strongly recommend. Sessions end after 2 hours idle or 12 hours total, and changing
   the password signs out every other browser. Failed passwords, setup codes and 2FA codes are rate-limited per IP and
   overall. Lost your phone? Delete the `"totp"` entry from `auth.json` in the data folder.
+- **Private code repository.** Self-update can download from a private GitHub repo using a read-only access key
+  saved (encrypted) in **Site copy → Security → Code updates from GitHub**. The key is only ever sent to
+  `api.github.com`. Use **Update site code now** there to install the latest `main`.
 - **Security log.** Logins, failed attempts, password and 2FA changes, uploader key changes and rejected keys are listed
   under **Site copy → Security**.
 
